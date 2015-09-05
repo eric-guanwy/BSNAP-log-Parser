@@ -7,6 +7,7 @@ import re
 import time,datetime
 import string
 import socket 
+import logging
 from ftplib import FTP
 
 
@@ -34,9 +35,13 @@ g_logDiretory = 'D:/boomsense/BSNAP LOG/'   #the last '/' is important!
 #g_logDiretory = 'D:/30 workspace/log/'
 g_WorkDiretory = "D:/boomsense/log/"
 
-#Log print
-def debug_print(s):  
-	print s 
+#Run log basic parameters
+logger=logging.getLogger()
+handler=logging.StreamHandler()
+logger.addHandler(handler)
+formatter = logging.Formatter('[%(asctime)s] %(funcName)10s [%(levelname)8s]: %(message)s')
+handler.setFormatter(formatter)
+logger.setLevel(logging.INFO)
 
 class LOGPARSER:  
     def __init__(self,logsummarydir, sourcelogdir,keyword,day2filter = 1):  
@@ -54,66 +59,52 @@ class LOGPARSER:
     def txt_parse(self, txtfile):		
 		datenow  = time.strftime('%Y%m%d%H%M%S', time.localtime())
 		parsefromtime = time.time() - (time.time()%86400) - 24*60*60*(self.day2filter-2) + time.timezone		
-		linetmstamp = 0
-		#print datenow
-		with open(self.logsummarydir+'logsummary_'+datenow+'.txt','a') as logsummary:
-			print 'callled at %s',datenow
+		linetmstamp = 0		
+		with open(self.logsummarydir+'logsummary_'+datenow+'.txt','a') as logsummary:			
+			logging.info('callled at %s',datenow)
 			for logfile in txtfile:
 				logfiledir = os.path.split(logfile)[0]
 				femtologdir = logfiledir.split('\\')[-1]				
-				#print logfiledir,femtologdir
 				if os.path.exists(logfile):	
 					with open(logfile,'r') as log4Parse:
 							try:
 								logsummary.writelines('\n\n'+logfiledir.split('\\')[-1]+'  '+self.femto2Name[femtologdir]+'\n')
 							except:					
 								logsummary.writelines('\n\n'+logfiledir+'\n')
-								pass
+								
 							logsummary.writelines('Parsed from '+logfile+':\n')
-							for line in log4Parse:
-								#print line[0:3]
+							for line in log4Parse:								
+								logging.debug(line[0:3])
 								if '[201' == line[0:4]:
 									linetime =time.strptime(line[1:20],'%Y-%m-%d %H:%M:%S')
 									linetmstamp = time.mktime(linetime)									
 								elif '2015' == line[0:4]:
 									linetime =time.strptime(line[0:19],'%Y-%m-%d %H:%M:%S')
 									linetmstamp = time.mktime(linetime)									
-								elif '[19' == line[0:3] or '197' == line[0:3]:
-									#print line.strip()
-									is_line_wroted = False
-									for word in self.keyword:											
-											to_match = re.search(word,line,re.IGNORECASE)
-											#print type(to_match)
-											if (None != to_match) and (False == is_line_wroted):												
-												#print line.strip()
-												logsummary.write(to_match.string)
-												is_line_wroted  = True
-											else:
-												pass
+								elif '[19' == line[0:3] or '197' == line[0:3]:									
+									linetmstamp = parsefromtime
 								else:
 									pass
 								
 								
-								if linetmstamp < parsefromtime:
-									#print time.ctime(linetmstamp),linetmstamp, time.ctime(parsefromtime), 'pass'
+								if linetmstamp < parsefromtime:									
 									pass
-								else:
-									#print time.ctime(linetmstamp),linetmstamp, time.ctime(parsefromtime), 'catch'									
+								else:									
+									logging.debug(line.strip())								
 									is_line_wroted = False
 									for word in self.keyword:											
 											to_match = re.search(word,line,re.IGNORECASE)
-											#print type(to_match)
+											logging.debug(type(to_match))
 											if (None != to_match) and (False == is_line_wroted):												
-												#print line.strip()
+												logging.debug(line.strip())
 												logsummary.write(to_match.string)
 												is_line_wroted  = True	
 											else:
 												pass											
 								
-					#except:
-						#logstr = u"%s Log file %s parsed fail!\n" %datenow, os.path.basename(logfile)
-						#debug_print(logstr)
-					#	pass
+					#except:						
+					#	logger.error('Log file %s parsed fail!',os.path.basename(logfile))				
+					
 				else:
 					pass
 
@@ -149,21 +140,17 @@ class LOGPARSER:
 	
 		
 if __name__ == '__main__':  
-    timenow  = time.localtime()  
-    datenow  = time.strftime('%Y-%m-%d %H:%M:%S', timenow)  
-    day2filter = 10
-    #for femtoelement in g_femto2Name.values():
+    #timenow  = time.localtime()  
+    #datenow  = time.strftime('%Y-%m-%d %H:%M:%S', timenow)  
+    day2filter = 4    
     if os.path.exists(g_logDiretory):		
-		#try:
-		logparse = LOGPARSER(g_WorkDiretory,g_logDiretory,g_keyWord,day2filter)	
-		logfile = logparse.get_filelist(g_logDiretory,g_fileExtend)
-		logparse.txt_parse(logfile)
-		#logparse.txt_parse(logfile,femtoelement)
-		logstr = u"%s Log files parsed successfully \n" %datenow  
-		debug_print(logstr) 
-		#except:
-		logstr = u"%s Log file parsed fail!\n" %datenow
-		debug_print(logstr)
-	
-
+		try:
+			logparse = LOGPARSER(g_WorkDiretory,g_logDiretory,g_keyWord,day2filter)	
+			logfile = logparse.get_filelist(g_logDiretory,g_fileExtend)
+			logparse.txt_parse(logfile)
+			
+			logging.critical('Log file parsed success!')
+		
+		except:		
+			logging.critical('Log file parsed fail!')
 #end of file
